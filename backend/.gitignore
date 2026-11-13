@@ -273,3 +273,12 @@ dist
 
 # SvelteKit build / generate output
 .svelte-kit
+# --- MineRakshak agent service ---
+.venv/
+.env
+data/
+*.db
+*.db-wal
+*.db-shm
+__pycache__/
+.pytest_cache/

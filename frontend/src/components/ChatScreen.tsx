@@ -9,13 +9,17 @@ import {
   listChatSessions,
   loadChatSession,
   renameChatSession,
+  AgentEvent,
 } from '../services/geminiService';
+import { AgentTrace } from './AgentTrace';
 
 interface Message {
   id: string;
   role: 'ai' | 'user';
   content: string;
   timestamp: string;
+  trace?: AgentEvent[];
+  confidence?: number;
 }
 
 const welcomeMessage = (): Message => ({
@@ -110,6 +114,7 @@ export const ChatScreen: React.FC = () => {
         role: message.role === 'assistant' ? 'ai' : 'user',
         content: message.content,
         timestamp: timeLabel(message.created_at),
+        trace: message.trace ?? undefined,
       })) : [welcomeMessage()]);
       setSidebarOpen(false);
     } catch (err) {
@@ -190,10 +195,17 @@ export const ChatScreen: React.FC = () => {
     try {
       const data = await getChatResponse(query, activeSessionId);
       setActiveSessionId(data.session_id);
+      try {
+        localStorage.setItem('minerakshak:last-run', JSON.stringify({ question: query, confidence: data.confidence, at: new Date().toISOString(), trace: data.trace }));
+      } catch {
+        // Storage can be disabled in private mode; the trace still renders in the chat.
+      }
       setMessages(previous => [...previous, {
         id: `ai-${Date.now()}`,
         role: 'ai',
         content: data.response,
+        trace: data.trace,
+        confidence: data.confidence,
         timestamp: timeLabel(new Date().toISOString()),
       }]);
       await refreshSessions();
@@ -275,13 +287,14 @@ export const ChatScreen: React.FC = () => {
                     <div className={`rounded-2xl px-5 py-4 ${message.role === 'user' ? 'rounded-br-md bg-amber-600/90 text-white' : 'rounded-bl-md border border-white/[0.06] bg-[#1A1A1F] text-slate-200'}`}>
                       {message.role === 'ai' ? renderFormattedContent(message.content) : <p className="text-[14px] leading-relaxed">{message.content}</p>}
                     </div>
+                    <AgentTrace events={message.trace} confidence={message.confidence} />
                     <p className={`mt-1 px-1 text-[10px] uppercase tracking-wider text-slate-600 ${message.role === 'user' ? 'text-right' : ''}`}>{message.timestamp}</p>
                   </div>
                 </motion.div>
               ))}
             </AnimatePresence>
           )}
-          {isTyping && <div className="flex justify-start"><div className="flex items-center gap-3 rounded-2xl rounded-bl-md border border-white/[0.06] bg-[#1A1A1F] px-5 py-4"><Loader2 className="h-4 w-4 animate-spin text-amber-400" /><span className="text-xs text-slate-500">Analyzing...</span></div></div>}
+          {isTyping && <div className="flex justify-start"><div className="flex items-center gap-3 rounded-2xl rounded-bl-md border border-white/[0.06] bg-[#1A1A1F] px-5 py-4"><Loader2 className="h-4 w-4 animate-spin text-amber-400" /><span className="text-xs text-slate-500">Agent team working...</span></div></div>}
         </div>
 
         <div className="flex-shrink-0 pb-5 pt-3">

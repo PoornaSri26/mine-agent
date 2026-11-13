@@ -99,7 +99,7 @@ export const HomeScreen: React.FC<{ onLaunch: () => void }> = ({ onLaunch }) => 
               transition={{ delay: 0.3, duration: 0.7 }}
               className="block text-orange-400"
             >
-              Powered by  AI
+              Powered by an agent team
             </motion.span>
           </motion.h1>
 

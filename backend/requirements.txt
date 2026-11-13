@@ -1,0 +1,19 @@
+# Web API
+fastapi>=0.109.0
+uvicorn[standard]>=0.24.1
+
+# Retrieval (FAISS + sentence transformers)
+numpy>=1.24.0
+faiss-cpu>=1.7.4
+sentence-transformers>=6.0.0
+
+# Multi-agent orchestration + LLM (current SDK; google-generativeai is retired)
+langgraph>=0.2.60
+google-genai>=1.0.0
+
+# Feeds, config and reporting
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+python-dateutil>=2.8.2
+reportlab>=4.0.0
+python-dotenv>=1.0.0

@@ -10,6 +10,7 @@ import { HomeScreen } from './components/HomeScreen';
 import { ChatScreen } from './components/ChatScreen';
 import { AlertsScreen } from './components/AlertsScreen';
 import { AuditScreen } from './components/AuditScreen';
+import { AgentsScreen } from './components/AgentsScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { useAuth } from './contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,6 +35,8 @@ export default function App() {
         return <AlertsScreen />;
       case 'reports':
         return <AuditScreen />;
+      case 'agents':
+        return <AgentsScreen />;
       default:
         return <HomeScreen onLaunch={() => setActiveTab('chatbot')} />;
     }

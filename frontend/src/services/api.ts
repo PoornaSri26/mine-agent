@@ -1,4 +1,14 @@
-export const API_BASE_URL = 'https://krishnasimha-mine-agent.hf.space';
+/**
+ * The API is deployed separately from the SPA (Vercel frontend + Render/HF
+ * backend), so its origin comes from `VITE_API_BASE_URL`. Previously this file
+ * hardcoded one Hugging Face Space, which made every other deployment fail.
+ *
+ * Local development: set `VITE_API_BASE_URL=http://localhost:8000` in `.env.local`.
+ * Same-origin deployments: leave it empty.
+ */
+const configuredBase = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
+
+export const API_BASE_URL = configuredBase.replace(/\/+$/, '');
 
 const TOKEN_KEY = 'minerakshak_auth_token';
 
@@ -58,4 +68,3 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
   const response = await apiFetch(path, init);
   return response.json() as Promise<T>;
 }
-

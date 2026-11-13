@@ -1,5 +1,16 @@
 import { apiJson } from './api';
 
+export interface AgentEvent {
+  id: string;
+  agent: string;
+  name: string;
+  role: string;
+  status: 'done' | 'warn' | 'error';
+  ms: number;
+  summary: string;
+  bullets?: string[];
+}
+
 export interface ChatSessionSummary {
   id: string;
   title: string;
@@ -12,6 +23,7 @@ export interface StoredMessage {
   role: 'user' | 'assistant';
   content: string;
   created_at: string;
+  trace?: AgentEvent[] | null;
 }
 
 export interface ChatSession {
@@ -21,8 +33,33 @@ export interface ChatSession {
   messages: StoredMessage[];
 }
 
+export interface ChatResponse {
+  response: string;
+  session_id: string;
+  confidence: number;
+  intent: string;
+  trace: AgentEvent[];
+  hazard?: { id: string; label: string; severity: string; confidence: number };
+  plan?: { rewritten?: string; rounds?: number };
+}
+
+export interface AgentInfo {
+  id: string;
+  name: string;
+  role: string;
+  stage: number;
+  description: string;
+  tools: string[];
+}
+
+export interface AgentsResponse {
+  agents: AgentInfo[];
+  pipeline: string[];
+  llm: { enabled: boolean; model: string; mode: string };
+}
+
 export const getChatResponse = (message: string, sessionId: string | null) =>
-  apiJson<{ response: string; session_id: string }>('/query', {
+  apiJson<ChatResponse>('/query', {
     method: 'POST',
     body: JSON.stringify({ query: message, session_id: sessionId }),
   });
@@ -51,3 +88,5 @@ export const deleteChatSession = (sessionId: string) =>
   apiJson<{ ok: boolean }>(`/sessions/${encodeURIComponent(sessionId)}`, {
     method: 'DELETE',
   });
+
+export const getAgents = () => apiJson<AgentsResponse>('/agents');

@@ -6,7 +6,8 @@ import {
   Menu,
   X,
   LogOut,
-  Newspaper
+  Newspaper,
+  Network
 } from 'lucide-react';
 import ClickSpark from '../designs/click';
 import { AnimatePresence, motion } from 'motion/react';
@@ -26,6 +27,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ activeTab, setActiveTab })
     { id: 'chatbot', label: 'AI Chatbot', icon: MessageSquare },
     { id: 'alerts', label: 'Updates', icon: Newspaper },
     { id: 'reports', label: 'Audit Reports', icon: FileText },
+    { id: 'agents', label: 'Agent Mesh', icon: Network },
   ];
 
   const handleNav = (id: string) => {

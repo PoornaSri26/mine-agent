@@ -92,6 +92,16 @@ export const AuthScreen: React.FC = () => {
           </button>
         </form>
 
+        {mode === 'login' && (
+          <button
+            type="button"
+            onClick={() => { setEmail('demo@minerakshak.app'); setPassword('demo1234'); setError(''); }}
+            className="mt-3 w-full rounded-xl border border-white/10 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-400 transition hover:border-amber-500/30 hover:text-amber-300"
+          >
+            Use demo account
+          </button>
+        )}
+
         <p className="mt-6 text-center text-sm text-slate-500">
           {mode === 'login' ? 'New to MineRakshak?' : 'Already have an account?'}{' '}
           <button type="button" onClick={switchMode} className="font-semibold text-amber-400 hover:text-amber-300">
