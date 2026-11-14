@@ -30,7 +30,7 @@ FastAPI (Render / Hugging Face Spaces)
                           └────────────── replan if coverage is thin ───────┘
                                                (max 2 passes)
 
-Research tools: FAISS cosine index (1,054 DGMS pages) · Qwen3-Embedding-0.6B (1,024-d) · Qwen3-Reranker-0.6B
+Research tools: FAISS cosine index (1,054 DGMS pages) · Granite Embedding Small English R2 (384-d) · optional GTE reranker
 Reasoning:      Gemini 3.8 Flash via the google-genai SDK (optional; deterministic fallback without a key)
 ```
 
@@ -68,8 +68,8 @@ existing frontend keeps working.
 | Layer | Model | Notes |
 | --- | --- | --- |
 | Reasoning | `gemini-3.8-flash` | Current stable Flash model. Gemini 2.5 is retired on 1 Dec 2026, so no 2.5 model string is used anywhere. Sampling parameters are not sent: they are deprecated on these generations. |
-| Embeddings | `Qwen/Qwen3-Embedding-0.6B` | 1,024-dim, Apache-2.0, instruction-tuned (query prefix lives in `agents/retrieval.py`). |
-| Reranking | `Qwen/Qwen3-Reranker-0.6B` | Falls back to `BAAI/bge-reranker-v2-m3` if a sentence-transformers build cannot load it. |
+| Embeddings | `ibm-granite/granite-embedding-small-english-r2` | 47M params, 384-dim, Apache-2.0. Needs no query instruction prefix (`EMBED_QUERY_PREFIX` is empty). A 0.6B embedder needs minutes per index pass on free CPU, which is why this one is used. |
+| Reranking | `Alibaba-NLP/gte-reranker-modernbert-base` | Opt-in via `ENABLE_RERANK=1`; off by default because a cross-encoder adds ~1 min per query on free CPU. |
 
 Both model IDs are environment overrides (`GEMINI_MODEL`, `EMBED_MODEL`, `RERANK_MODEL`). Changing
 `EMBED_MODEL` requires rebuilding the index — `index_meta.json` records the model and dimension, and the
@@ -137,6 +137,18 @@ classification and the API contract (auth, persistence with traces, `/updates` f
 
 ## Deploy
 
+### Live now
+
+| Piece | URL | Status |
+| --- | --- | --- |
+| Frontend (Vercel, production) | <https://minerakshak-azure.vercel.app> | **deployed** — serves the SPA, but every API call fails until a backend origin is set in `VITE_API_BASE_URL` |
+| Backend | not deployed yet | needs a host account; see below |
+
+### 0. Where the code lives
+
+`agentksimha/mine-agent` is read-only for this workstation's GitHub account, so the branch is pushed to the
+public fork <https://github.com/PoornaSri26/mine-agent> (`git remote add fork …`). Push there, not to `origin`.
+
 ### 1. Backend — Hugging Face Spaces (recommended, free)
 
 The API needs the full PyTorch + FAISS stack (~2 GB), which fits Spaces comfortably.
@@ -153,15 +165,27 @@ Render → New → Blueprint → this repo. It reads `render.yaml`, asks for `GO
 `ALLOWED_ORIGINS`, and mounts a 1 GB disk for SQLite. **Caveat:** the free 512 MB instance can be too small
 for the embedding models; if it restarts on first query, use Spaces or a paid instance.
 
+Note: Hugging Face answers **402 Payment Required** when a free account creates a Gradio or Docker Space
+(cpu-basic), so a PRO subscription ($9/mo) is required for that path. Cloud Run is the $0 alternative and
+needs `gcloud` plus a billing account.
+
 ### 3. Frontend — Vercel
+
+Already deployed to the `minerakshak` project (`poornasrin24-3598s-projects`):
 
 ```bash
 cd frontend
-vercel            # or: import the repo in the Vercel dashboard, root directory = frontend
+vercel --prod --yes            # redeploy
 ```
 
 Set `VITE_API_BASE_URL` to the deployed backend origin in Vercel → Settings → Environment Variables, then
 redeploy. `GEMINI_API_KEY` must **never** appear in the frontend environment.
+
+```bash
+cd frontend
+echo "https://<backend-host>" | vercel env add VITE_API_BASE_URL production
+vercel --prod --yes
+```
 
 ## Data and limitations
 
