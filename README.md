@@ -71,12 +71,17 @@ existing frontend keeps working.
 | Embeddings | `ibm-granite/granite-embedding-small-english-r2` | 47M params, 384-dim, Apache-2.0. Needs no query instruction prefix (`EMBED_QUERY_PREFIX` is empty). A 0.6B embedder needs minutes per index pass on free CPU, which is why this one is used. |
 | Reranking | `Alibaba-NLP/gte-reranker-modernbert-base` | Opt-in via `ENABLE_RERANK=1`; off by default because a cross-encoder adds ~1 min per query on free CPU. |
 
-Both model IDs are environment overrides (`GEMINI_MODEL`, `EMBED_MODEL`, `RERANK_MODEL`). Changing
-`EMBED_MODEL` requires rebuilding the index — `index_meta.json` records the model and dimension, and the
-service refuses to query a mismatched index instead of returning nonsense:
+Both model IDs are environment overrides (`GEMINI_MODEL`, `EMBED_MODEL`, `RERANK_MODEL`). `sentence-transformers`
+6.x needs `transformers` 5.x, which needs `huggingface-hub` 1.x; `requirements.txt` pins the three together
+because a mismatched install fails only when the embedder first loads.
+
+`backend/` ships the corpus (`index.pkl`, 1,056 pages), the built index (`index.faiss`, 1.6 MB, 384 dims) and
+`index_meta.json`, so a container starts serving without a build-time model download. Changing `EMBED_MODEL`
+invalidates that: `index_meta.json` records the model and dimension and the service refuses to query a
+mismatched index instead of returning nonsense, so rebuild and commit again:
 
 ```bash
-cd backend && python scripts/build_index.py
+cd backend && python scripts/build_index.py   # ~4 min on CPU
 ```
 
 ## Repository layout

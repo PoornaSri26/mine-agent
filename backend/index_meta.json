@@ -1,0 +1,8 @@
+{
+  "embed_model": "ibm-granite/granite-embedding-small-english-r2",
+  "documents": 1056,
+  "dimensions": 384,
+  "normalized": true,
+  "metric": "cosine",
+  "built_at": "2026-11-14T09:52:25Z"
+}

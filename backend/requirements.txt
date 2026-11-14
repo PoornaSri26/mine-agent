@@ -3,9 +3,14 @@ fastapi>=0.109.0
 uvicorn[standard]>=0.24.1
 
 # Retrieval (FAISS + sentence transformers)
+# sentence-transformers 6.x requires transformers 5.x, which in turn requires
+# huggingface-hub 1.x. Older combinations fail at import time, so all three are
+# pinned together instead of being resolved independently.
 numpy>=1.24.0
 faiss-cpu>=1.7.4
-sentence-transformers>=6.0.0
+sentence-transformers>=6.0.0,<7
+transformers>=5.0,<6
+huggingface-hub>=1.3,<3
 
 # Multi-agent orchestration + LLM (current SDK; google-generativeai is retired)
 langgraph>=0.2.60

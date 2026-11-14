@@ -1,7 +1,8 @@
 # Render blueprint for the FastAPI multi-agent service.
-# Note: the free instance has 512 MB RAM; sentence-transformers + PyTorch can
-# exceed that. Hugging Face Spaces (Docker) is the recommended free host for
-# the backend — see README "Deploy the backend".
+# Note: the free instance has 512 MB RAM; PyTorch plus the Granite embedder can
+# exceed that. Hugging Face Spaces (Docker) is the recommended host for the
+# backend — see README "Deploy". The index ships in the image, so no disk is
+# required; SQLite lives on the ephemeral filesystem and resets on redeploy.
 services:
   - type: web
     name: minerakshak-api
@@ -16,9 +17,9 @@ services:
       - key: GEMINI_MODEL
         value: gemini-3.8-flash
       - key: EMBED_MODEL
-        value: Qwen/Qwen3-Embedding-0.6B
+        value: ibm-granite/granite-embedding-small-english-r2
       - key: RERANK_MODEL
-        value: Qwen/Qwen3-Reranker-0.6B
+        value: Alibaba-NLP/gte-reranker-modernbert-base
       - key: AGENT_LLM_MODE
         value: auto
       - key: ALLOWED_ORIGINS
@@ -28,8 +29,4 @@ services:
       - key: ENABLE_WARMUP
         value: "1"
       - key: DB_PATH
-        value: /var/data/minerakshak.db
-    disk:
-      name: minerakshak-data
-      mountPath: /var/data
-      sizeGB: 1
+        value: /tmp/minerakshak.db
