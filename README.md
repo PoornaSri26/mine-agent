@@ -147,15 +147,22 @@ classification and the API contract (auth, persistence with traces, `/updates` f
 | Piece | URL | Status |
 | --- | --- | --- |
 | Frontend (Vercel, production) | <https://minerakshak-azure.vercel.app> | **deployed** |
-| Backend (FastAPI) | `https://<tunnel>.serveousercontent.com` via `VITE_API_BASE_URL` | **live through an SSH reverse tunnel to `uvicorn` on this machine**, so it only answers while that process and the machine are up. A permanent host is still one account away — see below. |
+| Backend (FastAPI + FAISS + LangGraph) | reached through `https://minerakshak-azure.vercel.app/api/*` | **live through an SSH reverse tunnel to `uvicorn` on the development machine**, so it answers only while that process and the machine are up. A permanent host is still one account away — see below. |
 
-Replace the tunnel origin with a real backend origin when one exists:
+The browser never calls the API host directly. `frontend/api/**` contains a small serverless proxy, and the SPA
+posts to its own origin (`VITE_API_BASE_URL=/api`). Two reasons: free tunnels answer browser-shaped requests
+with an HTML warning page, which breaks JSON parsing, and same-origin requests need no CORS at all.
+
+Point the proxy at a real backend by setting `API_UPSTREAM` in Vercel and redeploying:
 
 ```bash
 cd frontend
-echo "https://<backend-host>" | vercel env add VITE_API_BASE_URL production
+echo "https://<backend-host>" | vercel env add API_UPSTREAM production
 vercel --prod --yes
 ```
+
+`/api/*` is routed to `api/[...path].js`, `api/auth/[...path].js` and `api/sessions/[...path].js`; the SPA
+rewrite deliberately excludes `/api` (`/((?!api/).*)`) so it cannot swallow API calls.
 
 Until `GOOGLE_API_KEY` is set the graph runs in its deterministic offline mode: retrieval, the six-agent
 trace and the hazard taxonomy are real, but the prose is templated rather than model-written.
