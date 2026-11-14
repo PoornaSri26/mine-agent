@@ -146,8 +146,19 @@ classification and the API contract (auth, persistence with traces, `/updates` f
 
 | Piece | URL | Status |
 | --- | --- | --- |
-| Frontend (Vercel, production) | <https://minerakshak-azure.vercel.app> | **deployed** — serves the SPA, but every API call fails until a backend origin is set in `VITE_API_BASE_URL` |
-| Backend | not deployed yet | needs a host account; see below |
+| Frontend (Vercel, production) | <https://minerakshak-azure.vercel.app> | **deployed** |
+| Backend (FastAPI) | `https://<tunnel>.serveousercontent.com` via `VITE_API_BASE_URL` | **live through an SSH reverse tunnel to `uvicorn` on this machine**, so it only answers while that process and the machine are up. A permanent host is still one account away — see below. |
+
+Replace the tunnel origin with a real backend origin when one exists:
+
+```bash
+cd frontend
+echo "https://<backend-host>" | vercel env add VITE_API_BASE_URL production
+vercel --prod --yes
+```
+
+Until `GOOGLE_API_KEY` is set the graph runs in its deterministic offline mode: retrieval, the six-agent
+trace and the hazard taxonomy are real, but the prose is templated rather than model-written.
 
 ### 0. Where the code lives
 

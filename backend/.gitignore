@@ -282,3 +282,4 @@ data/
 *.db-shm
 __pycache__/
 .pytest_cache/
+.tools/
