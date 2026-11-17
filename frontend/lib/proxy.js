@@ -6,15 +6,25 @@
  * JSON parsing. Forwarding from a serverless function sends plain server headers
  * instead, so the upstream answers JSON and the SPA only talks to its own origin.
  *
- * `API_UPSTREAM` overrides the target; set it in Vercel when the backend moves.
+ * `API_UPSTREAM` is the deployed backend origin and must be set in Vercel. There
+ * is deliberately no baked-in default: pointing at a dead tunnel produced a bare
+ * "fetch failed" in the UI, which hid the real problem.
  */
-const UPSTREAM = (process.env.API_UPSTREAM || 'https://hlxxy-103-54-178-18.free.pinggy.net').replace(/\/+$/, '');
+const UPSTREAM = (process.env.API_UPSTREAM || '').replace(/\/+$/, '');
 
 export default async function proxy(req, res) {
+  if (!UPSTREAM) {
+    res.status(503).json({ detail: 'API_UPSTREAM is not configured for this deployment.' });
+    return;
+  }
+
   const target = `${UPSTREAM}${req.url.replace(/^\/api/, '')}`;
   const headers = { accept: 'application/json' };
   if (req.headers['content-type']) headers['content-type'] = req.headers['content-type'];
+  // Kept so authentication can be switched back on later without touching this file.
   if (req.headers.authorization) headers.authorization = req.headers.authorization;
+  // Anonymous reviewer identity (see frontend/src/services/api.ts).
+  if (req.headers['x-guest-id']) headers['x-guest-id'] = req.headers['x-guest-id'];
 
   const init = { method: req.method, headers, redirect: 'manual' };
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.body !== undefined && req.body !== null) {

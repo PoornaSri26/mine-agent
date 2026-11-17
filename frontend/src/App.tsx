@@ -11,19 +11,16 @@ import { ChatScreen } from './components/ChatScreen';
 import { AlertsScreen } from './components/AlertsScreen';
 import { AuditScreen } from './components/AuditScreen';
 import { AgentsScreen } from './components/AgentsScreen';
-import { AuthScreen } from './components/AuthScreen';
-import { useAuth } from './contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
+/**
+ * This review build has no sign-in: the workspace opens immediately and the API
+ * scopes conversations to the browser's guest id (see `services/api.ts`).
+ * `components/AuthScreen.tsx` and `contexts/AuthContext.tsx` are kept untouched
+ * so authentication can be wired back in at the end, as agreed.
+ */
 export default function App() {
-  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
-
-  if (loading) {
-    return <div className="min-h-screen bg-black flex items-center justify-center text-amber-400">Restoring your session...</div>;
-  }
-
-  if (!user) return <AuthScreen />;
 
   const renderScreen = () => {
     switch (activeTab) {

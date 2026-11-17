@@ -34,12 +34,12 @@ def test_audit_endpoint_returns_attachment(client: TestClient, monkeypatch: pyte
         "trace": [{"id": "report-1", "agent": "report", "name": "Report", "role": "Writer", "status": "done", "ms": 9, "summary": "Drafted."}],
     }
     monkeypatch.setattr(main, "run_pipeline", lambda question, history: stub)
-    token = client.post("/auth/login", json={"email": "demo@test.local", "password": "demo1234"}).json()["token"]
+    # The audit screen calls this endpoint anonymously, like the chat screen does.
 
     response = client.post(
         "/audit_report_pdf",
         json={"state": "Jharkhand", "year": "2015", "hazard_type": "Roof fall"},
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"X-Guest-Id": "reviewer-pdf00001"},
     )
 
     assert response.status_code == 200, response.text

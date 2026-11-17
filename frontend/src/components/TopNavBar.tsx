@@ -5,13 +5,11 @@ import {
   FileText, 
   Menu,
   X,
-  LogOut,
   Newspaper,
   Network
 } from 'lucide-react';
 import ClickSpark from '../designs/click';
 import { AnimatePresence, motion } from 'motion/react';
-import { useAuth } from '../contexts/AuthContext';
 
 interface TopNavBarProps {
   activeTab: string;
@@ -19,7 +17,6 @@ interface TopNavBarProps {
 }
 
 export const TopNavBar: React.FC<TopNavBarProps> = ({ activeTab, setActiveTab }) => {
-  const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -74,16 +71,6 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ activeTab, setActiveTab })
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
-
-        <div className="hidden md:flex items-center gap-3">
-          <div className="text-right leading-tight">
-            <p className="max-w-32 truncate text-xs font-semibold text-slate-200">{user?.name}</p>
-            <p className="max-w-32 truncate text-[10px] text-slate-500">{user?.email}</p>
-          </div>
-          <button onClick={() => logout()} aria-label="Sign out" title="Sign out" className="rounded-lg border border-white/10 p-2 text-slate-400 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
       </div>
 
       {/* Mobile Dropdown Menu */}
@@ -113,9 +100,6 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ activeTab, setActiveTab })
                 </button>
               );
             })}
-            <button onClick={() => logout()} className="w-full flex items-center gap-3 border-t border-white/10 px-5 py-3.5 text-sm font-medium text-red-300 hover:bg-red-500/10">
-              <LogOut className="w-4 h-4" /> Sign out
-            </button>
           </motion.div>
         )}
       </AnimatePresence>

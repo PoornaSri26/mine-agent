@@ -12,13 +12,13 @@ original project's; the agent layer is the enhancement.
 | Risk analysis was a single free-text prompt | Analysis agent uses a hazard taxonomy + severity rules, model-optional |
 | Audit PDF was one prompt | Compliance + Report agents produce the briefing, then it is typeset as a PDF |
 | No visibility | Every answer carries the agent trace; an **Agent Mesh** screen explains the team |
-| No accounts/sessions in the repo | Auth + conversation history implemented (the frontend already expected them) |
+| No accounts/sessions in the repo | Conversation history implemented and kept per browser guest id; sign-in is switched off for review |
 
 ## Architecture
 
 ```
 React SPA (Vercel)
-   │  Authorization: Bearer <token>
+   │  X-Guest-Id: <browser guest id>   (review build: no sign-in)
    ▼
 FastAPI (Render / Hugging Face Spaces)
    │
@@ -49,7 +49,7 @@ Reasoning:      Gemini 3.8 Flash via the google-genai SDK (optional; determinist
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/auth/register`, `/auth/login` | Create account / sign in, returns a bearer token |
+| `POST` | `/auth/register`, `/auth/login` | Account routes, kept for when sign-in returns (the UI does not call them now) |
 | `GET` | `/auth/me` | Restore session |
 | `POST` | `/auth/logout` | Revoke token |
 | `GET/POST` | `/sessions` | List / create conversations |
@@ -59,6 +59,9 @@ Reasoning:      Gemini 3.8 Flash via the google-genai SDK (optional; determinist
 | `POST` | `/audit_report_pdf` | Agent-written audit briefing as a PDF |
 | `GET` | `/agents` | Roster, pipeline order, LLM status |
 | `GET` | `/health` | Service, retrieval and LLM status |
+
+Only `/auth/*` needs a token. Everything else is scoped to the caller's `X-Guest-Id` header, which is how the app
+works while sign-in is switched off.
 
 `/query` keeps its original contract (`{query, session_id}` → `{response, session_id}`) and adds fields, so the
 existing frontend keeps working.
@@ -128,17 +131,21 @@ echo "VITE_API_BASE_URL=http://localhost:8000" > .env.local
 npm run dev
 ```
 
-Demo login created on first boot: `demo@minerakshak.app` / `demo1234` (set `SEED_DEMO=0` to disable).
+There is **no sign-in** in this build: the app opens straight into the workspace and every request carries an
+`X-Guest-Id` that the browser generates once and keeps in `localStorage`. The API stores each guest's conversations
+separately, so two people reviewing the deployment at the same time never see each other's chats. The `/auth/*`
+routes and the demo account are still in the code for when authentication is added back.
 
 ## Tests
 
 ```bash
-cd backend && python -m pytest -q          # 17 tests, offline, no API key
+cd backend && python -m pytest -q          # 18 tests, offline, no API key
 cd frontend && npm run lint                # tsc --noEmit
 ```
 
 Agent tests cover delegation order, the critic's second research pass, the no-evidence path, hazard
-classification and the API contract (auth, persistence with traces, `/updates` format).
+classification and the API contract (guest access without a token, per-guest session isolation, persistence with
+traces, the audit PDF, the still-present `/auth/*` routes and the `/updates` format).
 
 ## Deploy
 
@@ -147,7 +154,7 @@ classification and the API contract (auth, persistence with traces, `/updates` f
 | Piece | URL | Status |
 | --- | --- | --- |
 | Frontend (Vercel, production) | <https://minerakshak-azure.vercel.app> | **deployed** |
-| Backend (FastAPI + FAISS + LangGraph) | reached through `https://minerakshak-azure.vercel.app/api/*` | **live through an SSH reverse tunnel to `uvicorn` on the development machine**, so it answers only while that process and the machine are up. A permanent host is still one account away — see below. |
+| Backend (FastAPI + FAISS + LangGraph) | reached through `https://minerakshak-azure.vercel.app/api/*` | **not hosted**: the reverse tunnel to `uvicorn` on the development machine has stopped, and the proxy now reports `API_UPSTREAM is not configured` instead of a bare `fetch failed`. Set `API_UPSTREAM` to a hosted backend and redeploy — see below. |
 
 The browser never calls the API host directly. `frontend/api/**` contains a small serverless proxy, and the SPA
 posts to its own origin (`VITE_API_BASE_URL=/api`). Two reasons: free tunnels answer browser-shaped requests
@@ -217,6 +224,11 @@ vercel --prod --yes
   the agents say so rather than inventing numbers.
 * Compliance output is *checks to verify* against the current regulation edition — not a legal opinion.
 * `ALLOWED_ORIGINS` defaults to localhost; set it to the deployed frontend origin (or `*` for a review demo).
+* Sign-in is removed for review, as requested, so `/query`, `/sessions/*` and `/audit_report_pdf` are reachable
+  without an account. Ownership is the guest id in the `X-Guest-Id` header: it separates histories, it is *not*
+  access control. Anyone who calls `/query` while a Gemini key is set spends its quota, so add authentication back
+  (switch `request_owner` to `current_user` in `main.py` and `auth.py`) before leaving the service public with a
+  live key.
 * This is an engineering prototype for review, not a certified safety system.
 
 ## Branch

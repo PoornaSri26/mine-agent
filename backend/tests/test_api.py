@@ -1,4 +1,9 @@
-"""API contract tests for the deployed frontend's expectations."""
+"""API contract tests for the deployed frontend's expectations.
+
+The app has no sign-in for this review build, so the important contract is that
+`/query` and `/sessions` work for an anonymous browser and stay separated per
+guest. The account routes are still covered because they come back later.
+"""
 
 from __future__ import annotations
 
@@ -26,6 +31,9 @@ STUB_RESULT: dict[str, Any] = {
     "plan": {"intent": "knowledge", "rewritten": "methane", "tasks": [], "rounds": 1},
 }
 
+GUEST_A = {"X-Guest-Id": "reviewer-aaaa1111"}
+GUEST_B = {"X-Guest-Id": "reviewer-bbbb2222"}
+
 
 def _login(client: TestClient, email: str = "demo@test.local", password: str = "demo1234") -> str:
     response = client.post("/auth/login", json={"email": email, "password": password})
@@ -46,7 +54,7 @@ def test_health_and_roster(client: TestClient) -> None:
     }
 
 
-def test_register_login_and_me(client: TestClient) -> None:
+def test_auth_endpoints_still_available_for_later(client: TestClient) -> None:
     created = client.post(
         "/auth/register",
         json={"name": "Asha Verma", "email": "asha@test.local", "password": "strongpass123"},
@@ -62,20 +70,40 @@ def test_register_login_and_me(client: TestClient) -> None:
     assert client.get("/auth/me", headers={"Authorization": "Bearer nope"}).status_code == 401
 
 
-def test_query_requires_auth(client: TestClient) -> None:
-    assert client.post("/query", json={"query": "methane"}).status_code == 401
+def test_query_is_served_without_login(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "run_pipeline", lambda question, history: STUB_RESULT)
+
+    response = client.post("/query", json={"query": "What causes methane explosions?"}, headers=GUEST_A)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["session_id"]
+    assert payload["trace"][0]["agent"] == "supervisor"
+    assert payload["confidence"] == 0.74
+
+
+def test_guest_conversations_are_isolated(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "run_pipeline", lambda question, history: STUB_RESULT)
+    mine = client.post("/query", json={"query": "Roof fall precautions"}, headers=GUEST_A).json()
+
+    own = client.get("/sessions", headers=GUEST_A).json()["sessions"]
+    other = client.get("/sessions", headers=GUEST_B).json()["sessions"]
+
+    assert any(session["id"] == mine["session_id"] for session in own)
+    assert all(session["id"] != mine["session_id"] for session in other)
+    assert client.get(f"/sessions/{mine['session_id']}", headers=GUEST_B).status_code == 404
 
 
 def test_query_persists_session_with_agent_trace(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main, "run_pipeline", lambda question, history: STUB_RESULT)
-    token = _login(client)
-    headers = {"Authorization": f"Bearer {token}"}
 
-    created = client.post("/sessions", json={"title": "Methane review"}, headers=headers)
+    created = client.post("/sessions", json={"title": "Methane review"}, headers=GUEST_A)
     assert created.status_code == 200
     session_id = created.json()["session_id"]
 
-    response = client.post("/query", json={"query": "What causes methane explosions?", "session_id": session_id}, headers=headers)
+    response = client.post(
+        "/query", json={"query": "What causes methane explosions?", "session_id": session_id}, headers=GUEST_A
+    )
     assert response.status_code == 200, response.text
     payload = response.json()
     assert payload["session_id"] == session_id
@@ -83,21 +111,20 @@ def test_query_persists_session_with_agent_trace(client: TestClient, monkeypatch
     assert payload["confidence"] == 0.74
     assert payload["intent"] == "knowledge"
 
-    stored = client.get(f"/sessions/{session_id}", headers=headers).json()
+    stored = client.get(f"/sessions/{session_id}", headers=GUEST_A).json()
     assert [message["role"] for message in stored["messages"]] == ["user", "assistant"]
     assert stored["messages"][1]["trace"][0]["name"] == "Supervisor"
 
-    listed = client.get("/sessions", headers=headers).json()["sessions"]
+    listed = client.get("/sessions", headers=GUEST_A).json()["sessions"]
     assert listed[0]["message_count"] == 2
 
-    assert client.delete(f"/sessions/{session_id}", headers=headers).json() == {"ok": True}
+    assert client.delete(f"/sessions/{session_id}", headers=GUEST_A).json() == {"ok": True}
 
 
 def test_query_creates_session_when_missing(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main, "run_pipeline", lambda question, history: STUB_RESULT)
-    headers = {"Authorization": f"Bearer {_login(client)}"}
 
-    payload = client.post("/query", json={"query": "Roof fall precautions"}, headers=headers).json()
+    payload = client.post("/query", json={"query": "Roof fall precautions"}, headers=GUEST_A).json()
     assert payload["session_id"]
     assert payload["response"].startswith("**Assessment.**")
 

@@ -10,6 +10,7 @@ const configuredBase = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
 
 export const API_BASE_URL = configuredBase.replace(/\/+$/, '');
 
+const GUEST_KEY = 'minerakshak_guest_id';
 const TOKEN_KEY = 'minerakshak_auth_token';
 
 export class ApiError extends Error {
@@ -21,6 +22,32 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+let guestId = '';
+
+const newGuestId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+};
+
+/**
+ * Identity of this browser while the app has no sign-in. The API uses it to
+ * keep each reviewer's conversations separate; it is replaced by an account id
+ * when authentication is added back.
+ */
+export const getGuestId = () => {
+  if (guestId) return guestId;
+  try {
+    guestId = localStorage.getItem(GUEST_KEY) || newGuestId();
+    localStorage.setItem(GUEST_KEY, guestId);
+  } catch {
+    // Storage can be blocked (private mode); the id then lasts for this page view.
+    guestId = newGuestId();
+  }
+  return guestId;
+};
 
 export const getAuthToken = () => localStorage.getItem(TOKEN_KEY);
 
@@ -40,6 +67,7 @@ const errorMessage = async (response: Response) => {
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
+  headers.set('X-Guest-Id', getGuestId());
   const token = getAuthToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {

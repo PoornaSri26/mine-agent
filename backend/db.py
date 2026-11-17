@@ -138,6 +138,30 @@ def get_user(user_id: str) -> dict[str, Any] | None:
         return dict(row) if row else None
 
 
+def ensure_guest(guest_id: str) -> dict[str, Any]:
+    """Return the local owner row for a browser's guest id, creating it once.
+
+    Guests are ordinary rows in `users` with an id prefixed `guest:` so a guest id
+    can never collide with an account id. They have no usable password and exist
+    only to own conversations until sign-in is added back.
+    """
+    owner_id = f"guest:{guest_id}"
+    with _LOCK:
+        connection = _connect()
+        row = connection.execute(
+            "SELECT id, name, email FROM users WHERE id = ?", (owner_id,)
+        ).fetchone()
+        if row:
+            return dict(row)
+        email = f"guest-{guest_id}@guest.local"
+        connection.execute(
+            "INSERT INTO users (id, name, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
+            (owner_id, "Guest reviewer", email, "!", _now()),
+        )
+        connection.commit()
+        return {"id": owner_id, "name": "Guest reviewer", "email": email}
+
+
 # --------------------------------------------------------------------------- tokens
 
 

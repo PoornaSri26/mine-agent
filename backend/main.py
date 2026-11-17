@@ -26,7 +26,7 @@ from agents import AGENTS, PIPELINE, hazards, run_pipeline
 from agents.llm import llm
 from agents.nodes import triage_bulletin
 from agents.retrieval import VectorStore, warmup
-from auth import current_user
+from auth import request_owner
 from auth import router as auth_router
 from report_pdf import build_report_pdf
 from rss_feed import fetch_dgms_updates
@@ -102,7 +102,7 @@ def agents() -> dict[str, Any]:
 
 
 @app.post("/query")
-async def query_agent(request: Request, user: dict = Depends(current_user)) -> dict[str, Any]:
+async def query_agent(request: Request, user: dict = Depends(request_owner)) -> dict[str, Any]:
     try:
         data = await request.json()
     except Exception:
@@ -197,7 +197,7 @@ def _safe_filename(value: str) -> str:
 
 
 @app.post("/audit_report_pdf")
-async def audit_report_pdf(request: Request, user: dict = Depends(current_user)) -> Response:  # noqa: ARG001
+async def audit_report_pdf(request: Request, user: dict = Depends(request_owner)) -> Response:  # noqa: ARG001
     try:
         data = await request.json()
     except Exception:
