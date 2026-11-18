@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from typing import Any
 
 import config
@@ -27,6 +28,20 @@ class GeminiClient:
     def __init__(self) -> None:
         self._client: Any = None
         self._failed = False
+        # Quota errors are not worth retrying on every request: a per-day 429
+        # parks the client for a while so answers stay fast once the free-tier
+        # allowance is spent. A per-minute 429 only costs a short pause.
+        self._blocked_until = 0.0
+
+    def _cool_down(self, exc: Exception) -> None:
+        message = str(exc).upper()
+        if "RESOURCE_EXHAUSTED" in message or "429" in message:
+            daily = "PER DAY" in message or "PER_DAY" in message or "PERDAY" in message
+            pause = 900.0 if daily else 30.0
+            self._blocked_until = max(self._blocked_until, time.time() + pause)
+            logger.warning(
+                "Gemini quota reached; skipping model calls for %d s", int(pause)
+            )
 
     @property
     def available(self) -> bool:
@@ -34,6 +49,8 @@ class GeminiClient:
 
     def _get_client(self) -> Any:
         if not config.llm_enabled() or self._failed:
+            return None
+        if time.time() < self._blocked_until:
             return None
         if self._client is None:
             try:
@@ -64,6 +81,8 @@ class GeminiClient:
             "response_mime_type": "application/json" if json_mode else "text/plain",
             "max_output_tokens": 2048,
         }
+        if time.time() < self._blocked_until:
+            return None
         thinking = config.GEMINI_THINKING_LEVEL
         for model in config.gemini_models():
             request_config = types.GenerateContentConfig(
@@ -80,6 +99,7 @@ class GeminiClient:
                 )
             except Exception as exc:  # pragma: no cover - network dependent
                 logger.warning("Gemini call failed (%s): %s", model, exc)
+                self._cool_down(exc)
                 # Older variants reject thinking_level: retry this model plain.
                 if thinking and ("thinking" in str(exc).lower() or "INVALID_ARGUMENT" in str(exc)):
                     try:
