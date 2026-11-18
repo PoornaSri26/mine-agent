@@ -269,6 +269,11 @@ export const AlertsScreen: React.FC = () => {
           </div>
         ) : (
           <div className="max-w-full mx-auto space-y-6">
+            {note && (
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-4 py-2 text-[11px] text-amber-200/80">
+                {note}
+              </div>
+            )}
             <AnimatePresence>
               {alerts.map((alert, idx) => {
                 const config = riskConfig[alert.type];
