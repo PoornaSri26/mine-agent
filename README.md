@@ -164,7 +164,7 @@ traces, the audit PDF, the still-present `/auth/*` routes and the `/updates` for
 | Piece | URL | Status |
 | --- | --- | --- |
 | Frontend (Vercel, production) | <https://minerakshak-azure.vercel.app> | **deployed** |
-| Backend (FastAPI + FAISS + LangGraph) | reached through `https://minerakshak-azure.vercel.app/api/*` | **not hosted**: the reverse tunnel to `uvicorn` on the development machine has stopped, and the proxy now reports `API_UPSTREAM is not configured` instead of a bare `fetch failed`. Set `API_UPSTREAM` to a hosted backend and redeploy — see below. |
+| Backend (FastAPI + FAISS + LangGraph) | <https://minerakshak-api.onrender.com> (reached through `https://minerakshak-azure.vercel.app/api/*`) | **deployed** on Render free: ONNX embedder, 1,056 documents, six agents, `/health` 200. `API_UPSTREAM` on Vercel points at it. Free tier sleeps after ~15 min idle, so the first request afterwards takes ~30-60 s to wake. |
 
 The browser never calls the API host directly. `frontend/api/**` contains a small serverless proxy, and the SPA
 posts to its own origin (`VITE_API_BASE_URL=/api`). Two reasons: free tunnels answer browser-shaped requests
