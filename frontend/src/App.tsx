@@ -44,7 +44,10 @@ export default function App() {
       <TopNavBar activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className={`flex-grow ${activeTab === 'home' ? '' : 'max-w-10xl mx-auto w-full px-4 md:px-10 lg:px-20 xl:px-40 pt-20'}`}>
-        <AnimatePresence mode="wait">
+        {/* No mode="wait": waiting for the exit animation blocks the next screen
+            when requestAnimationFrame is throttled (background tab), which froze
+            navigation. The screens cross-fade instead. */}
+        <AnimatePresence initial={false}>
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 10 }}

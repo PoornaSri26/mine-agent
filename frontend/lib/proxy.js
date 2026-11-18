@@ -34,9 +34,14 @@ export default async function proxy(req, res) {
 
   try {
     const upstream = await fetch(target, init);
-    const body = await upstream.text();
+    // Forward bytes, not a decoded string: the API answers with a bare
+    // `application/json` content type, so decoding here and letting res.send()
+    // re-encode it turned "→" and "·" in the agent trace into "â†’" / "Â·".
+    const body = Buffer.from(await upstream.arrayBuffer());
+    const type = upstream.headers.get('content-type') || 'application/json';
+    const textual = /^(text\/|application\/(json|xml|javascript|x-ndjson))/i.test(type);
     res.status(upstream.status);
-    res.setHeader('content-type', upstream.headers.get('content-type') || 'application/json');
+    res.setHeader('content-type', textual && !/charset=/i.test(type) ? `${type}; charset=utf-8` : type);
     res.setHeader('cache-control', 'no-store');
     res.send(body);
   } catch (error) {
