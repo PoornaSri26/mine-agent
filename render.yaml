@@ -22,8 +22,10 @@ services:
         value: Alibaba-NLP/gte-reranker-modernbert-base
       - key: AGENT_LLM_MODE
         value: auto
+      # The browser talks to the Vercel proxy, not to this origin directly, so CORS
+      # is not load-bearing for the review demo; * keeps the blueprint prompt-free.
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: "*"
       - key: SEED_DEMO
         value: "1"
       - key: ENABLE_WARMUP
