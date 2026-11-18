@@ -20,6 +20,16 @@ load_dotenv(BASE_DIR / ".env")
 GOOGLE_API_KEY = (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip()
 # gemini-3.8-flash is the current stable Flash model (2.5 is retired Dec 2026).
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+# Free-tier capacity is per model: the newest Flash can answer 503 UNAVAILABLE
+# while an older stable Flash still serves. These are tried in order after
+# GEMINI_MODEL, so a saturated model never drops the graph to templates.
+GEMINI_FALLBACK_MODELS = [
+    name.strip()
+    for name in os.getenv(
+        "GEMINI_FALLBACK_MODELS", "gemini-3.7-flash,gemini-3.6-flash"
+    ).split(",")
+    if name.strip()
+]
 
 # Retrieval models. Granite Embedding R2 (Aug 2025, Apache-2.0) is the current
 # 47M/384-dim release: it beats the older bge/e5 small models on MTEB-v2 while
@@ -80,3 +90,12 @@ def llm_enabled() -> bool:
     if LLM_MODE == "gemini":
         return bool(GOOGLE_API_KEY)
     return bool(GOOGLE_API_KEY)
+
+
+def gemini_models() -> list[str]:
+    """Ordered model candidates: the configured model, then free-tier backups."""
+    ordered: list[str] = []
+    for name in [GEMINI_MODEL, *GEMINI_FALLBACK_MODELS]:
+        if name and name not in ordered:
+            ordered.append(name)
+    return ordered

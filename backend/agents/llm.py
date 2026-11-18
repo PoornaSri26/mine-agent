@@ -54,22 +54,28 @@ class GeminiClient:
         client = self._get_client()
         if client is None:
             return None
-        try:
-            from google.genai import types
+        from google.genai import types
 
-            response = client.models.generate_content(
-                model=config.GEMINI_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system,
-                    response_mime_type="application/json" if json_mode else "text/plain",
-                    max_output_tokens=2048,
-                ),
-            )
-            return (getattr(response, "text", "") or "").strip() or None
-        except Exception as exc:  # pragma: no cover - network dependent
-            logger.warning("Gemini call failed (%s): %s", config.GEMINI_MODEL, exc)
+        request_config = types.GenerateContentConfig(
+            system_instruction=system,
+            response_mime_type="application/json" if json_mode else "text/plain",
+            max_output_tokens=2048,
+        )
+        for model in config.gemini_models():
+            try:
+                response = client.models.generate_content(
+                    model=model, contents=prompt, config=request_config
+                )
+            except Exception as exc:  # pragma: no cover - network dependent
+                logger.warning("Gemini call failed (%s): %s", model, exc)
+                continue
+            text = (getattr(response, "text", "") or "").strip()
+            if text:
+                if model != config.GEMINI_MODEL:
+                    logger.info("Answered by fallback model %s", model)
+                return text
             return None
+        return None
 
     def text(self, prompt: str, system: str | None = None) -> str | None:
         return self._generate(prompt, system, json_mode=False)
