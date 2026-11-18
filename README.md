@@ -201,8 +201,11 @@ The API needs the full PyTorch + FAISS stack (~2 GB), which fits Spaces comforta
 
 ### 2. Backend — Render (free, no card)
 
-Render → New → Blueprint → this repo. It reads `render.yaml`, asks for `GOOGLE_API_KEY` and
-`ALLOWED_ORIGINS`, and serves the same Docker image behind `/health`.
+Render → New → Blueprint → the fork `PoornaSri26/mine-agent`, and set **Branch** to
+`feature/multi-agent-system` in the form (Render defaults to the repo's default branch, which is `main`).
+`render.yaml` exists on that branch only — on `main` the Blueprint screen reports "render.yaml not
+found". The blueprint asks for `GOOGLE_API_KEY` only; leaving it empty is fine, it then runs offline.
+It serves the same Docker image behind `/health`.
 
 The free instance has 512 MB, which the PyTorch embedder did not fit (751 MB measured). `render.yaml` sets
 `EMBED_BACKEND=onnx` and the service now holds at 352 MB with the encoder already prefetched into the image.
