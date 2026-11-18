@@ -1,8 +1,8 @@
 # Render blueprint for the FastAPI multi-agent service.
-# Note: the free instance has 512 MB RAM; PyTorch plus the Granite embedder can
-# exceed that. Hugging Face Spaces (Docker) is the recommended host for the
-# backend — see README "Deploy". The index ships in the image, so no disk is
-# required; SQLite lives on the ephemeral filesystem and resets on redeploy.
+# The free instance has 512 MB RAM, so the image installs requirements-serve.txt
+# (no PyTorch) and serves the Granite encoder through ONNX Runtime: measured RSS
+# is ~0.35 GB. The FAISS index ships in the image, so no disk is required; SQLite
+# lives on the ephemeral filesystem and resets on redeploy.
 services:
   - type: web
     name: minerakshak-api

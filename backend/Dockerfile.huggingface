@@ -23,8 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+COPY requirements-serve.txt .
+RUN pip install --upgrade pip && pip install -r requirements-serve.txt
 
 # Prefetch the pinned ONNX encoder so a container starts serving without a
 # 191 MB download on the first query.

@@ -1,0 +1,35 @@
+# Runtime dependencies for the deployed image (EMBED_BACKEND=onnx).
+#
+# requirements.txt stays the full dev set: it is what builds the FAISS index and
+# what `EMBED_BACKEND=torch` needs. Installing it in the image pulls
+# sentence-transformers -> torch, and the Linux torch wheel drags in ~2 GB of
+# CUDA libraries that the service never imports, which turns a free-tier Docker
+# build into a multi-gigabyte image for no benefit.
+#
+# Nothing under main -> agents/* imports torch, transformers or
+# sentence-transformers at module level; the torch encoder and the cross-encoder
+# reranker are imported lazily and are both opt-in.
+
+# Web API
+fastapi>=0.109.0
+uvicorn[standard]>=0.24.1
+
+# Retrieval (FAISS + the Granite R2 encoder through ONNX Runtime)
+numpy>=1.24.0
+faiss-cpu>=1.7.4
+onnxruntime>=1.20
+# tokenizers reads the model's tokenizer.json directly (no transformers import);
+# huggingface-hub fetches the pinned ONNX export at start-up.
+tokenizers>=0.20
+huggingface-hub>=1.3,<3
+
+# Multi-agent orchestration + LLM (current SDK; google-generativeai is retired)
+langgraph>=0.2.60
+google-genai>=1.0.0
+
+# Feeds, config and reporting
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+python-dateutil>=2.8.2
+reportlab>=4.0.0
+python-dotenv>=1.0.0

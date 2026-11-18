@@ -79,8 +79,11 @@ Both model IDs are environment overrides (`GEMINI_MODEL`, `EMBED_MODEL`, `RERANK
 6.x needs `transformers` 5.x, which needs `huggingface-hub` 1.x; `requirements.txt` pins the three together
 because a mismatched install fails only when the embedder first loads.
 
-Serving does not import PyTorch at all. `agents/embedding.py` runs the same Granite weights through ONNX
-Runtime, using the model's own tokenizer and CLS pooling, and the export revision is pinned in
+Serving does not import PyTorch at all.
+The image installs `requirements-serve.txt` instead of `requirements.txt`,
+so the multi-gigabyte Linux torch wheel never enters the build. `agents/embedding.py` runs the same
+Granite weights through ONNX Runtime, using the model's own tokenizer and CLS pooling, and the
+export revision is pinned in
 `config.py` so a rebuild cannot silently swap the encoder behind the committed FAISS index. Retrieval was
 checked both ways: the same top page (129, score 0.87) and the same coverage for the reference query.
 
