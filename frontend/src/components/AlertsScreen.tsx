@@ -24,7 +24,16 @@ interface AlertData {
   recommendedActions: string[];
   link: string;
   isError: boolean;
+  snapshot?: boolean;
 }
+
+const formatDate = (value: string): string => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? ''
+    : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+};
 
 // --- Robust Markdown-aware parser for danger_analysis ---
 
@@ -165,6 +174,7 @@ export const AlertsScreen: React.FC = () => {
   const [alerts, setAlerts] = useState<AlertData[]>(sampleAlerts);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     const fetchAlerts = async () => {
@@ -173,6 +183,7 @@ export const AlertsScreen: React.FC = () => {
         const data = await response.json();
         
         const updates = Array.isArray(data.updates) ? data.updates : [];
+        setNote(typeof data.message === 'string' ? data.message : '');
         const parsedAlerts: AlertData[] = updates
           .map((item: any, index: number) => {
             const rawAnalysis = getAnalysisText(item.danger_analysis);
@@ -188,7 +199,8 @@ export const AlertsScreen: React.FC = () => {
               id: `live-${index}`,
               type,
               title: item.title || 'Official Bulletin Update',
-              time: item.published || new Date().toISOString(),
+              time: item.published || '',
+              snapshot: Boolean(item.snapshot),
               link: item.link || '#',
               hazardType,
               description: text,
@@ -247,6 +259,14 @@ export const AlertsScreen: React.FC = () => {
             <p className="mt-2 text-sm text-red-300/80">{error}</p>
             <button onClick={() => window.location.reload()} className="mt-5 rounded-lg border border-red-500/30 px-4 py-2 text-sm text-red-200 hover:bg-red-500/10">Try again</button>
           </div>
+        ) : alerts.length === 0 ? (
+          <div className="mx-auto max-w-xl rounded-2xl border border-white/10 bg-[#111114]/90 p-8 text-center">
+            <Info className="mx-auto mb-4 h-8 w-8 text-slate-400" />
+            <h2 className="font-semibold text-slate-200">No bulletins to show</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {note || 'No live bulletins could be fetched right now. Try again shortly.'}
+            </p>
+          </div>
         ) : (
           <div className="max-w-full mx-auto space-y-6">
             <AnimatePresence>
@@ -288,11 +308,16 @@ export const AlertsScreen: React.FC = () => {
                               <span className="font-mono text-[10px] text-slate-300 uppercase tracking-wider">{alert.hazardType}</span>
                             </div>
                           )}
-                          {alert.time && (
+                          {alert.snapshot && (
+                            <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2">
+                              <span className="font-mono text-[10px] text-amber-300/80 uppercase tracking-wider">Bundled snapshot</span>
+                            </div>
+                          )}
+                          {formatDate(alert.time) && (
                             <div className="flex items-center gap-1.5 px-3 py-1.5">
                               <Clock className="w-3 h-3 text-slate-500" />
                               <span className="font-mono text-[10px] text-slate-500 tracking-wider">
-                                {new Date(alert.time).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                                {formatDate(alert.time)}
                               </span>
                             </div>
                           )}

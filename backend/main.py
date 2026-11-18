@@ -170,6 +170,7 @@ async def get_updates() -> dict[str, Any]:
         return {
             "title": item.get("title", "Untitled bulletin"),
             "link": item.get("link", ""),
+            "snapshot": bool(item.get("snapshot")),
             "published": item.get("published", ""),
             "danger_analysis": hazards.analysis_markdown(hazard),
             "risk_level": hazard.get("severity", "Low"),
@@ -178,11 +179,16 @@ async def get_updates() -> dict[str, Any]:
         }
 
     analyzed = await asyncio.gather(*(analyze(item) for item in items)) if items else []
+    message = ""
+    if not analyzed:
+        message = "No live bulletins could be fetched right now. Try again shortly."
+    elif all(item.get("snapshot") for item in analyzed):
+        message = "Live feeds are unreachable from the server - showing the bundled bulletin snapshot."
     payload = {
         "updates": list(analyzed),
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "analyst": "Analysis agent",
-        "message": "" if analyzed else "No live bulletins could be fetched right now. Try again shortly.",
+        "message": message,
     }
     _updates_cache.update({"at": now, "payload": payload})
     return payload

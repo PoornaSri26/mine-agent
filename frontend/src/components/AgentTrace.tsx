@@ -27,6 +27,12 @@ export const AgentTrace: React.FC<AgentTraceProps> = ({ events, confidence, defa
   const totalMs = events.reduce((sum, event) => sum + (event.ms || 0), 0);
   const agents = new Set(events.map(event => event.agent)).size;
 
+  // Steps that finish inside a millisecond are reported as 0ms by the API; show
+  // them as "<1ms" and keep the run total in milliseconds while it is under 1s,
+  // so a fast run does not read as "0ms" / "0.0s".
+  const formatMs = (ms: number) => (ms < 1 ? '<1ms' : `${ms}ms`);
+  const formatTotal = (ms: number) => (ms < 1000 ? formatMs(ms) : `${(ms / 1000).toFixed(1)}s`);
+
   return (
     <div className="mt-2 overflow-hidden rounded-xl border border-white/[0.06] bg-[#111114]">
       <button
@@ -45,7 +51,7 @@ export const AgentTrace: React.FC<AgentTraceProps> = ({ events, confidence, defa
           )}
           <span className="flex items-center gap-1 font-mono text-[10px] text-slate-600">
             <Clock3 className="h-3 w-3" />
-            {(totalMs / 1000).toFixed(1)}s
+            {formatTotal(totalMs)}
           </span>
           <ChevronDown className={`h-4 w-4 text-slate-500 transition ${open ? 'rotate-180' : ''}`} />
         </span>
@@ -66,7 +72,7 @@ export const AgentTrace: React.FC<AgentTraceProps> = ({ events, confidence, defa
                   <div className="flex flex-wrap items-baseline gap-x-2">
                     <span className="text-[13px] font-semibold text-slate-200">{event.name}</span>
                     <span className="text-[10px] uppercase tracking-wider text-slate-600">{event.role}</span>
-                    <span className="font-mono text-[10px] text-slate-600">{event.ms}ms</span>
+                    <span className="font-mono text-[10px] text-slate-600">{formatMs(event.ms || 0)}</span>
                   </div>
                   <p className="mt-0.5 text-[12px] leading-relaxed text-slate-400">{event.summary}</p>
                   {event.bullets && event.bullets.length > 0 && (
