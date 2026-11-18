@@ -1,10 +1,9 @@
 """Fetch the latest mine-safety bulletins for `GET /updates`.
 
-Sources are ordered by reachability from a cloud host, not by prestige: the
-direct publisher feeds (mining.com, miningweekly, mining-technology) answer
-Cloudflare 403 to datacentre IPs, so the Google News queries run first. If every
-source fails, the bundled snapshot in `data/bulletins_snapshot.json` is used so
-the Updates screen still shows real bulletins instead of an empty page.
+Google News queries come first because they answer reliably from a cloud host
+and are not behind Cloudflare; the publisher feeds follow as fallbacks. If every
+source fails, `bulletins_snapshot.json` (real bulletins captured at build time)
+is served so the Updates screen still shows content instead of an empty page.
 """
 
 import json
@@ -21,11 +20,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Kept outside `data/` on purpose: .dockerignore excludes the runtime data dir.
 SNAPSHOT_PATH = os.path.join(BASE_DIR, "bulletins_snapshot.json")
 
-# Ordered by how reliably they answer a cloud/datacentre IP.
+# Ordered by reliability; Google News answers cloud IPs most consistently.
 RSS_SOURCES = [
     "https://news.google.com/rss/search?q=DGMS+mine+safety+India&hl=en-IN&gl=IN&ceid=IN:en",
     "https://news.google.com/rss/search?q=mine+accident+India+safety&hl=en-IN&gl=IN&ceid=IN:en",
-    "https://www.mining.com/feed/",          # often blocked by Cloudflare
+    "https://www.mining.com/feed/"
     "https://www.mining-technology.com/feed/",
     "https://www.miningweekly.com/page/rss",
 ]
