@@ -39,6 +39,22 @@ MAX_AGENT_ROUNDS = int(os.getenv("AGENT_MAX_ROUNDS", "2"))
 RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
 ENABLE_RERANK = os.getenv("ENABLE_RERANK", "0") not in {"0", "false", "False"}
 
+# Embedding backend. "onnx" runs the same Granite weights through ONNX Runtime
+# (~350 MB process) instead of PyTorch + sentence-transformers (~750 MB), which
+# is what lets the API fit a 512 MB free instance; "torch" is the reference path
+# used to build the index. The ONNX export is pinned to a reviewed revision:
+# its vectors match the torch encoder exactly (cosine 1.000000).
+EMBED_BACKEND = os.getenv("EMBED_BACKEND", "onnx").strip().lower()
+EMBED_ONNX_REPO = os.getenv(
+    "EMBED_ONNX_REPO", "keisuke-miyako/granite-embedding-small-english-r2-onnx-fp32"
+)
+EMBED_ONNX_FILE = os.getenv("EMBED_ONNX_FILE", "model.onnx")
+EMBED_ONNX_REVISION = os.getenv("EMBED_ONNX_REVISION", "5f8b507347bf281bcaceefcc51ae5435a31fbbdd")
+
+# Free hosts give a fraction of a core; extra threads cost memory arenas
+# without buying throughput.
+TORCH_THREADS = int(os.getenv("TORCH_THREADS", "1"))
+
 ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(

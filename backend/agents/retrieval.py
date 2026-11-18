@@ -74,12 +74,11 @@ class _StubUnpickler(pickle.Unpickler):
 def read_documents() -> list[dict[str, Any]]:
     """Page corpus stored in ``index.pkl`` (the source of truth for the index)."""
     path = config.BASE_DIR / "index.pkl"
-    try:
-        with open(path, "rb") as handle:
-            meta = pickle.load(handle)
-    except ModuleNotFoundError:
-        with open(path, "rb") as handle:
-            meta = _StubUnpickler(handle).load()
+    # Always unpickle through the stub: the pickle references LangChain
+    # docstore classes, and importing them when they happen to be installed
+    # pulled a ~230 MB dependency tree into the process for 1,056 pages of text.
+    with open(path, "rb") as handle:
+        meta = _StubUnpickler(handle).load()
 
     if not isinstance(meta, (tuple, list)) or len(meta) < 2:
         raise RetrievalUnavailable("index.pkl has an unexpected structure")
@@ -185,18 +184,14 @@ class VectorStore:
             self.documents = read_documents()
             try:
                 import faiss
-                from sentence_transformers import SentenceTransformer
             except Exception as exc:  # pragma: no cover - heavy optional deps
                 self._error = f"Retrieval dependencies unavailable: {exc}"
                 raise RetrievalUnavailable(self._error) from exc
 
             self.index = faiss.read_index(str(FAISS_PATH))
-            # Qwen3 checkpoints load as bfloat16 by default, which is far slower on CPU.
-            import torch
+            from agents.embedding import build_encoder
 
-            self.encoder = SentenceTransformer(
-                config.EMBED_MODEL, model_kwargs={"dtype": torch.float32}
-            )
+            self.encoder = build_encoder()
             dimension = self.encoder.get_sentence_embedding_dimension() or 0
             if dimension and dimension != getattr(self.index, "d", dimension):
                 self._error = (
@@ -280,6 +275,7 @@ class VectorStore:
             "ready": self._ready,
             "documents": len(self.documents),
             "embed_model": config.EMBED_MODEL,
+            "embed_backend": config.EMBED_BACKEND,
             "rerank_model": self.reranker_name,
             "dimensions": self.meta.get("dimensions"),
             "error": self._error,

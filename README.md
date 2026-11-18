@@ -73,10 +73,16 @@ existing frontend keeps working.
 | Reasoning | `gemini-3.8-flash` | Current stable Flash model. Gemini 2.5 is retired on 1 Dec 2026, so no 2.5 model string is used anywhere. Sampling parameters are not sent: they are deprecated on these generations. |
 | Embeddings | `ibm-granite/granite-embedding-small-english-r2` | 47M params, 384-dim, Apache-2.0. Needs no query instruction prefix (`EMBED_QUERY_PREFIX` is empty). A 0.6B embedder needs minutes per index pass on free CPU, which is why this one is used. |
 | Reranking | `Alibaba-NLP/gte-reranker-modernbert-base` | Opt-in via `ENABLE_RERANK=1`; off by default because a cross-encoder adds ~1 min per query on free CPU. |
+| Embedding runtime | ONNX Runtime, fp32 export pinned to revision `5f8b507` | Same Granite weights without PyTorch: measured cosine **1.000000** against the torch encoder, and the served process holds at **352 MB instead of 751 MB**, which is what lets the API fit a 512 MB free instance. `EMBED_BACKEND=torch` keeps the reference path used by `scripts/build_index.py`. |
 
 Both model IDs are environment overrides (`GEMINI_MODEL`, `EMBED_MODEL`, `RERANK_MODEL`). `sentence-transformers`
 6.x needs `transformers` 5.x, which needs `huggingface-hub` 1.x; `requirements.txt` pins the three together
 because a mismatched install fails only when the embedder first loads.
+
+Serving does not import PyTorch at all. `agents/embedding.py` runs the same Granite weights through ONNX
+Runtime, using the model's own tokenizer and CLS pooling, and the export revision is pinned in
+`config.py` so a rebuild cannot silently swap the encoder behind the committed FAISS index. Retrieval was
+checked both ways: the same top page (129, score 0.87) and the same coverage for the reference query.
 
 `backend/` ships the corpus (`index.pkl`, 1,056 pages), the built index (`index.faiss`, 1.6 MB, 384 dims) and
 `index_meta.json`, so a container starts serving without a build-time model download. Changing `EMBED_MODEL`
@@ -93,6 +99,7 @@ cd backend && python scripts/build_index.py   # ~4 min on CPU
 backend/
   main.py                 FastAPI routes (query, updates, audit PDF, health)
   agents/                 LangGraph state, nodes, graph, prompts, taxonomy, retrieval
+  agents/embedding.py     ONNX Runtime embedder used in serving; torch path for index builds
   auth.py                 auth + session endpoints
   db.py / security.py     SQLite persistence, PBKDF2 + hashed bearer tokens
   report_pdf.py           markdown → A4 PDF
@@ -189,11 +196,15 @@ The API needs the full PyTorch + FAISS stack (~2 GB), which fits Spaces comforta
    `ALLOWED_ORIGINS=https://<your-vercel-app>.vercel.app`.
 4. Wait for the build; check `https://<space>.hf.space/health`.
 
-### 2. Backend — Render (free alternative)
+### 2. Backend — Render (free, no card)
 
 Render → New → Blueprint → this repo. It reads `render.yaml`, asks for `GOOGLE_API_KEY` and
-`ALLOWED_ORIGINS`, and mounts a 1 GB disk for SQLite. **Caveat:** the free 512 MB instance can be too small
-for the embedding models; if it restarts on first query, use Spaces or a paid instance.
+`ALLOWED_ORIGINS`, and serves the same Docker image behind `/health`.
+
+The free instance has 512 MB, which the PyTorch embedder did not fit (751 MB measured). `render.yaml` sets
+`EMBED_BACKEND=onnx` and the service now holds at 352 MB with the encoder already prefetched into the image.
+Two free-tier behaviours to expect: it sleeps after ~15 minutes idle, so the first request afterwards takes
+~30-60 s to wake; and `/tmp` is ephemeral, so guest conversation rows reset on redeploy or restart.
 
 Note: Hugging Face answers **402 Payment Required** when a free account creates a Gradio or Docker Space
 (cpu-basic), so a PRO subscription ($9/mo) is required for that path. Cloud Run is the $0 alternative and

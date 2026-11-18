@@ -28,5 +28,15 @@ services:
         value: "1"
       - key: ENABLE_WARMUP
         value: "1"
+      # 512 MB free instance: ONNX embedder (no PyTorch at runtime), one thread,
+      # glibc arenas capped. Measured RSS ~0.35-0.4 GB (see README).
+      - key: EMBED_BACKEND
+        value: onnx
+      - key: TORCH_THREADS
+        value: "1"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
       - key: DB_PATH
         value: /tmp/minerakshak.db
