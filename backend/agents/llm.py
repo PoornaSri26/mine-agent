@@ -42,7 +42,10 @@ class GeminiClient:
 
                 self._client = genai.Client(
                     api_key=config.GOOGLE_API_KEY,
-                    http_options=types.HttpOptions(timeout=60_000),
+                    http_options=types.HttpOptions(
+                        timeout=int(config.GEMINI_TIMEOUT_S * 1000),
+                        retry_options=types.HttpRetryOptions(attempts=1),
+                    ),
                 )
                 logger.info("Gemini client ready: %s", config.GEMINI_MODEL)
             except Exception as exc:  # pragma: no cover - depends on env
@@ -56,19 +59,40 @@ class GeminiClient:
             return None
         from google.genai import types
 
-        request_config = types.GenerateContentConfig(
-            system_instruction=system,
-            response_mime_type="application/json" if json_mode else "text/plain",
-            max_output_tokens=2048,
-        )
+        base: dict[str, Any] = {
+            "system_instruction": system,
+            "response_mime_type": "application/json" if json_mode else "text/plain",
+            "max_output_tokens": 2048,
+        }
+        thinking = config.GEMINI_THINKING_LEVEL
         for model in config.gemini_models():
+            request_config = types.GenerateContentConfig(
+                **base,
+                **(
+                    {"thinking_config": types.ThinkingConfig(thinking_level=thinking)}
+                    if thinking
+                    else {}
+                ),
+            )
             try:
                 response = client.models.generate_content(
                     model=model, contents=prompt, config=request_config
                 )
             except Exception as exc:  # pragma: no cover - network dependent
                 logger.warning("Gemini call failed (%s): %s", model, exc)
-                continue
+                # Older variants reject thinking_level: retry this model plain.
+                if thinking and ("thinking" in str(exc).lower() or "INVALID_ARGUMENT" in str(exc)):
+                    try:
+                        response = client.models.generate_content(
+                            model=model,
+                            contents=prompt,
+                            config=types.GenerateContentConfig(**base),
+                        )
+                    except Exception as retry_exc:  # pragma: no cover
+                        logger.warning("Gemini retry failed (%s): %s", model, retry_exc)
+                        continue
+                else:
+                    continue
             text = (getattr(response, "text", "") or "").strip()
             if text:
                 if model != config.GEMINI_MODEL:

@@ -44,6 +44,15 @@ RERANK_MODEL = os.getenv("RERANK_MODEL", "Alibaba-NLP/gte-reranker-modernbert-ba
 # offline-> never call the network (used by tests and demos without a key)
 LLM_MODE = os.getenv("AGENT_LLM_MODE", "auto").strip().lower()
 
+# Agent calls are structured extraction, not long-form reasoning: "low" thinking
+# keeps a four-call pipeline inside the 60 s cap the Vercel proxy enforces on the
+# Hobby plan. Set GEMINI_THINKING_LEVEL="" to send no thinking config at all.
+GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "low").strip().lower()
+# Per-call ceiling, in seconds. Free-tier capacity failures arrive as 503/504;
+# a short timeout with a single SDK attempt lets the next model answer instead
+# of burning the request budget retrying a saturated one.
+GEMINI_TIMEOUT_S = float(os.getenv("GEMINI_TIMEOUT_S", "15"))
+
 DB_PATH = pathlib.Path(os.getenv("DB_PATH", str(BASE_DIR / "data" / "minerakshak.db")))
 MAX_AGENT_ROUNDS = int(os.getenv("AGENT_MAX_ROUNDS", "2"))
 RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
