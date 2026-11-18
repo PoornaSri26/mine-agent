@@ -9,10 +9,12 @@ the Updates screen still shows real bulletins instead of an empty page.
 
 import json
 import os
+import re
 from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
+from bs4 import FeatureNotFound
 from dateutil import parser
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -68,17 +70,38 @@ def _text(node) -> str:
     return node.get_text(" ", strip=True) if node is not None else ""
 
 
+def _find(item, *names):
+    """Find the first child with any of these tag names.
+
+    html.parser lowercases tag names, so `item.find("pubDate")` misses `<pubdate>`;
+    matching case-insensitively keeps dates working with either parser.
+    """
+    for name in names:
+        node = item.find(name)
+        if node is not None:
+            return node
+    wanted = {name.lower() for name in names}
+    for child in item.find_all(True):
+        if child.name and child.name.lower() in wanted:
+            return child
+    return None
+
+
 def _entry(item) -> dict | None:
-    title = _text(item.find("title"))
+    title = _text(_find(item, "title"))
     if not title:
         return None
 
-    link = _text(item.find("link"))
+    link_node = _find(item, "link")
+    link = _text(link_node) or (link_node.get("href", "") if link_node is not None else "")
     if not link:
-        link_node = item.find("link")
-        link = link_node.get("href", "") if link_node is not None else ""
+        # html.parser treats `<link>` as a void tag, so the URL survives only as
+        # the text node right after it (`<link/>https://...`). Read it back.
+        match = re.search(r"<link[^>]*>\s*(https?://[^<\s]+)", item.decode(), re.IGNORECASE)
+        if match:
+            link = match.group(1)
 
-    published = _text(item.find("pubDate")) or _text(item.find("published")) or _text(item.find("updated"))
+    published = _text(_find(item, "pubDate", "published", "updated"))
     if published:
         try:
             published = parser.parse(published).date().isoformat()
@@ -89,7 +112,13 @@ def _entry(item) -> dict | None:
 
 
 def _parse_feed(body: str, limit: int) -> list[dict]:
-    soup = BeautifulSoup(body, "xml")
+    # The deployed image installs requirements-serve.txt, which has no lxml, so
+    # BeautifulSoup(body, "xml") raised FeatureNotFound there and every source
+    # looked dead. Fall back to the stdlib parser, which reads RSS/Atom fine.
+    try:
+        soup = BeautifulSoup(body, "xml")
+    except FeatureNotFound:
+        soup = BeautifulSoup(body, "html.parser")
     items = soup.find_all("item") or soup.find_all("entry")
     entries: list[dict] = []
     seen: set[str] = set()
