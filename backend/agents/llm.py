@@ -85,6 +85,10 @@ class GeminiClient:
             return None
         thinking = config.GEMINI_THINKING_LEVEL
         for model in config.gemini_models():
+            # A quota error on an earlier candidate ends the whole attempt: the
+            # remaining models share the same project allowance.
+            if time.time() < self._blocked_until:
+                return None
             request_config = types.GenerateContentConfig(
                 **base,
                 **(
