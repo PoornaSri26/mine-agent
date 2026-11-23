@@ -70,7 +70,7 @@ existing frontend keeps working.
 
 | Layer | Model | Notes |
 | --- | --- | --- |
-| Reasoning | `gemini-3.8-flash` | Current stable Flash model. Gemini 2.5 is retired on 1 Dec 2026, so no 2.5 model string is used anywhere. Sampling parameters are not sent: they are deprecated on these generations. |
+| Reasoning | `gemini-3.8-flash`, then `gemini-3.7-flash`, then `gemini-3.6-flash` (`GEMINI_FALLBACK_MODELS`) | Current stable Flash model first: free-tier capacity is per model, so a saturated 3.8 hands the call to the next candidate instead of failing. Gemini 2.5 is retired on 1 Dec 2026, so no 2.5 model string is used anywhere. Sampling parameters are not sent: they are deprecated on these generations. Calls run at `thinking_level=low` with a 15 s ceiling, because the Vercel proxy caps a function at 60 s. |
 | Embeddings | `ibm-granite/granite-embedding-small-english-r2` | 47M params, 384-dim, Apache-2.0. Needs no query instruction prefix (`EMBED_QUERY_PREFIX` is empty). A 0.6B embedder needs minutes per index pass on free CPU, which is why this one is used. |
 | Reranking | `Alibaba-NLP/gte-reranker-modernbert-base` | Opt-in via `ENABLE_RERANK=1`; off by default because a cross-encoder adds ~1 min per query on free CPU. |
 | Embedding runtime | ONNX Runtime, fp32 export pinned to revision `5f8b507` | Same Granite weights without PyTorch: measured cosine **1.000000** against the torch encoder, and the served process holds at **352 MB instead of 751 MB**, which is what lets the API fit a 512 MB free instance. `EMBED_BACKEND=torch` keeps the reference path used by `scripts/build_index.py`. |
@@ -246,6 +246,11 @@ vercel --prod --yes
   access control. Anyone who calls `/query` while a Gemini key is set spends its quota, so add authentication back
   (switch `request_owner` to `current_user` in `main.py` and `auth.py`) before leaving the service public with a
   live key.
+* The free Gemini tier allows **20 requests per day per model**. One question costs three model calls
+  (analysis, compliance, report); the Supervisor plan and bulletin triage are deterministic, and
+  `AGENT_SUPERVISOR_LLM=1` / `AGENT_BULLETIN_LLM=1` put the model back on those two at the cost of quota.
+  That is roughly six questions per day. Once the allowance is spent the agents answer from the evidence
+  path, so replies keep their structure but read as templates until the quota resets at midnight Pacific.
 * This is an engineering prototype for review, not a certified safety system.
 
 ## Branch

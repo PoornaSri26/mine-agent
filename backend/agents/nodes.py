@@ -105,7 +105,7 @@ def supervisor_node(state: AgentState) -> dict[str, Any]:
     ]
     plan_notes: list[str] = []
 
-    if llm.available:
+    if config.SUPERVISOR_LLM and llm.available:
         payload = llm.json(
             f"Conversation so far:\n{_history_block(history)}\n\nNew request:\n{question}",
             system=prompts.SUPERVISOR_SYSTEM,
@@ -516,7 +516,7 @@ def triage_bulletin(title: str, summary: str) -> dict[str, Any]:
     """Used by `GET /updates`: the analysis agent classifies one bulletin."""
     text = f"{title}. {summary}".strip()
     hazard = hazards.classify(text, [{"text": summary, "page": 0, "source": "bulletin", "score": 1.0}])
-    if llm.available:
+    if config.BULLETIN_LLM and llm.available:
         payload = llm.json(
             f"Bulletin title: {title}\nBulletin text: {_snippet(summary, 1200)}",
             system=prompts.ANALYSIS_SYSTEM,

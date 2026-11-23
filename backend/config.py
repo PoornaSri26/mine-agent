@@ -53,6 +53,15 @@ GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "low").strip().lower(
 # of burning the request budget retrying a saturated one.
 GEMINI_TIMEOUT_S = float(os.getenv("GEMINI_TIMEOUT_S", "15"))
 
+# The specialist roster is fixed and the intent rules already cover the requests
+# this service receives, so the Supervisor plans deterministically and the model
+# is spent on evidence work instead. AGENT_SUPERVISOR_LLM=1 restores the model.
+SUPERVISOR_LLM = os.getenv("AGENT_SUPERVISOR_LLM", "0") not in {"0", "false", "False"}
+# Bulletin triage is a taxonomy lookup the deterministic classifier answers; a
+# model call per bulletin cost five of the twenty free-tier requests every cache
+# refresh. AGENT_BULLETIN_LLM=1 restores it.
+BULLETIN_LLM = os.getenv("AGENT_BULLETIN_LLM", "0") not in {"0", "false", "False"}
+
 DB_PATH = pathlib.Path(os.getenv("DB_PATH", str(BASE_DIR / "data" / "minerakshak.db")))
 MAX_AGENT_ROUNDS = int(os.getenv("AGENT_MAX_ROUNDS", "2"))
 RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
